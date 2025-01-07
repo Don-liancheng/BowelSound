@@ -6,9 +6,10 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
 
     @IBOutlet weak var slider: UISlider!
     @IBOutlet weak var analyzeButton: UIButton!
-    @IBOutlet weak var fileNameLabel: UILabel! // 用于显示文件名
+    @IBOutlet weak var fileNameLabel: UILabel!
     @IBOutlet weak var predictionLabel: UILabel!
     @IBOutlet weak var recordButton: UIButton!
+    @IBOutlet weak var timeLabel: UILabel!
     
     var audioPlayer: AVAudioPlayer?
     var audioRecorder: AVAudioRecorder?
@@ -235,6 +236,11 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
             guard let audioPlayer = audioPlayer else { return }
             slider.maximumValue = Float(audioPlayer.duration)
             slider.value = 0
+            
+            // 设置初始时间和总时长
+            let totalTime = formatTime(seconds: audioPlayer.duration)
+            timeLabel.text = "00:00 / \(totalTime)"
+            
             startTimer()
         } catch {
             print("Playback error: \(error.localizedDescription)")
@@ -243,20 +249,28 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
     }
 
     // MARK: - Timer 和实用方法
-
     func startTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self, let player = self.audioPlayer else { return }
             self.slider.value = Float(player.currentTime)
             if player.currentTime >= player.duration { self.stopTimer() }
+            // 更新当前播放时间
+            let currentTime = formatTime(seconds: player.currentTime)
+            let totalTime = formatTime(seconds: player.duration)
+            self.timeLabel.text = "\(currentTime) / \(totalTime)"
         }
-        print("Timer started for slider updates.")
+
     }
 
     func stopTimer() {
         timer?.invalidate()
         timer = nil
+        // 重置时间显示
+        if let audioPlayer = audioPlayer {
+            let totalTime = formatTime(seconds: audioPlayer.duration)
+            timeLabel.text = "00:00 / \(totalTime)"
+        }
         print("Timer stopped.")
     }
 
@@ -281,4 +295,9 @@ extension ViewController: AVAudioRecorderDelegate {
             showAlert(title: "Recording Error", message: "Failed to save the recording.")
         }
     }
+}
+func formatTime(seconds: TimeInterval) -> String {
+    let integerPart = Int(seconds) // 秒的整数部分
+    let fractionalPart = Int((seconds - Double(integerPart)) * 100) // 秒的小数部分，保留两位
+    return "\(integerPart):\(fractionalPart)"
 }
