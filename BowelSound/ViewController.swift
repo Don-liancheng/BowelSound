@@ -17,8 +17,11 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
     var selectedFileUrl: URL?
     var isRecording = false
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupAudioSession() // 检查音频输入设备
+    }
     // MARK: - 文件选择和播放
-
     @IBAction func chooseFile(_ sender: Any) {
         let supportedTypes: [UTType] = [.mp3, .wav, .aiff]
         let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: supportedTypes)
@@ -103,13 +106,34 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
             return nil
         }
     }
-
+    func setupAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        
+        do {
+            // 设置音频会话类别为录音
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: .defaultToSpeaker)
+            try audioSession.setActive(true)
+            
+            // 打印可用输入设备
+            if let inputDevices = audioSession.availableInputs {
+                print("Available input devices: \(inputDevices)")
+            } else {
+                print("No input devices available.")
+            }
+        } catch {
+            print("Failed to set up audio session: \(error.localizedDescription)")
+        }
+    }
     func startRecording() {
-        let audioFilename = getDocumentsDirectory().appendingPathComponent("recording.m4a")
+        // 使用当前时间生成文件名
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        let audioFilename = getDocumentsDirectory().appendingPathComponent("recording_\(timestamp).wav")
         print("Start recording to: \(audioFilename.path)")
         
         let settings = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
             AVSampleRateKey: 44100,
             AVNumberOfChannelsKey: 1,
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
@@ -121,7 +145,7 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
             audioRecorder?.delegate = self
             audioRecorder?.record()
             isRecording = true
-            recordButton.setTitle("Stop Recording", for: .normal)
+            recordButton.setTitle("Finish", for: .normal)
             print("Recording started.")
         } catch {
             print("Recording error: \(error.localizedDescription)")
@@ -137,7 +161,7 @@ class ViewController: UIViewController, UIDocumentPickerDelegate {
         
         audioRecorder.stop()
         isRecording = false
-        recordButton.setTitle("Start Recording", for: .normal)
+        recordButton.setTitle("Record", for: .normal)
         print("Recording stopped.")
         
         let recordedUrl = audioRecorder.url // 不需要使用 if let，因为 .url 是非可选类型
@@ -298,6 +322,6 @@ extension ViewController: AVAudioRecorderDelegate {
 }
 func formatTime(seconds: TimeInterval) -> String {
     let integerPart = Int(seconds) // 秒的整数部分
-    let fractionalPart = Int((seconds - Double(integerPart)) * 100) // 秒的小数部分，保留两位
-    return "\(integerPart):\(fractionalPart)"
+    let fractionalPart = Int((seconds - Double(integerPart)) * 100) // 小数部分，取两位
+    return String(format: "%02d:%02d", integerPart, fractionalPart) // 格式化为两位小数
 }
